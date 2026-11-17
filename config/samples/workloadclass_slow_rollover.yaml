@@ -1,0 +1,39 @@
+apiVersion: workloads.gke.io/v1
+kind: WorkloadClass
+metadata:
+  name: slow-rollover-batch
+  namespace: workload-class-test
+spec:
+  podSelector:
+    matchLabels:
+      demo-scenario: slow-rollover
+  computeClass: memory
+  disruptionPolicy:
+    allowedDisruptionWindows:
+      - name: "always-open-demo-window"
+        daysOfWeek:
+          - Thursday
+          - Saturday
+          - Sunday
+        startTime: "00:00"
+        endTime: "23:59"
+        timeZone: "Etc/UTC"
+    allowedDisruptionsOutsideOfWindow:
+      - kind: ServiceAccount
+        name: vpa-updater
+        namespace: vpa
+      - kind: User
+        name: system:cluster-autoscaler
+    maxNonDisruptionDurationDays: 15
+    maxUnavailable: 1
+    # Short threshold (default is 120s) so the lease bypass is quick to observe live:
+    # evict one pod, get denied while the PDB is blocked, then retry after 30s and watch
+    # the lease force it through instead of waiting forever for a replacement that will
+    # never pass its readiness probe (see deployment_slow_rollover.yaml).
+    disruptionStuckThresholdSeconds: 30
+    # These pods never pass readiness by design, so currentHealthy/desiredHealthy are
+    # always 0 - the lease alone (which only opens maxUnavailable) can't get the native
+    # eviction handler past the "don't evict an already-unhealthy pod" gate. AlwaysAllow
+    # skips that gate while Ready/Overdue, which is what actually lets eviction succeed
+    # here; IfHealthyBudget still applies outside the window regardless of this setting.
+    unhealthyPodEvictionPolicy: AlwaysAllow

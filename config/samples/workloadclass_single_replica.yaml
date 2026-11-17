@@ -1,0 +1,54 @@
+apiVersion: workloads.gke.io/v1
+kind: WorkloadClass
+metadata:
+  name: single-replica-batch
+  namespace: workload-class-test
+spec:
+  podSelector:
+    matchLabels:
+      demo-scenario: single-replica
+  # Schedules matched pods onto the "memory" ComputeClass (memory-cc / memory-cc-do-not-disrupt
+  # nodepools), resolved and validated against the real ComputeClass object by the reconciler
+  # before the mutating webhook injects the nodeSelector/toleration.
+  computeClass: memory
+  disruptionPolicy:
+    allowedDisruptionWindows:
+      - name: "always-open-demo-window"
+        daysOfWeek:
+          - Thursday
+          - Saturday
+          - Sunday
+        startTime: "00:00"
+        endTime: "23:59"
+        timeZone: "Etc/UTC"
+    allowedDisruptionsOutsideOfWindow:
+      - kind: ServiceAccount
+        name: vpa-updater
+        namespace: vpa
+      - kind: User
+        name: system:cluster-autoscaler
+    maxNonDisruptionDurationDays: 15
+    # A freshly-started single-instance batch job gets a full day to prove itself before
+    # it's eligible for disruption at all, even during an open window.
+    minInitialRunDurationDays: 1
+    # Explicit default: no active emergency. Setting this true would bypass every other
+    # constraint here immediately, regardless of window, pod age, or identity.
+    emergencyOverride: false
+    # Deliberately impossible: with only 1 replica, this PDB can never allow a disruption on its
+    # own. That's the point - watch the DisruptionWebhook bypass it immediately with a lease the
+    # moment the window is open, instead of waiting out disruptionStuckThresholdSeconds. There's
+    # nothing to pace with a single replica, so the PDB gate simply relaxes rather than stalling.
+    maxUnavailable: 0
+    # Outside the window this is always IfHealthyBudget regardless of what's configured here.
+    unhealthyPodEvictionPolicy: IfHealthyBudget
+  # Right-sizing intent for a single-instance workload: nothing to shift load to, so vertical
+  # sizing is the only lever. SetOnce sizes the pod once at creation (VPA "Initial") rather than
+  # continuously adjusting it, matching a batch job that shouldn't be repeatedly recreated.
+  resourceManagement:
+    targetRef:
+      kind: Deployment
+      name: single-replica-demo
+    rightSizing:
+      mode: SetOnce
+      maxCPU: "1"
+      maxMemory: "1G"

@@ -1,0 +1,11 @@
+## Append samples of your project ##
+resources:
+- sample_namespace.yaml
+- workloads_v1_workloadclassguardrail.yaml
+- workloadclass_single_replica.yaml
+- deployment_single_replica.yaml
+- workloadclass_multi_replica.yaml
+- deployment_multi_replica.yaml
+- workloadclass_slow_rollover.yaml
+- deployment_slow_rollover.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

@@ -1,0 +1,16 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- name: vpoddisruption.gke.io
+  # Scope this webhook down to the test namespace only, rather than validating
+  # every pod create/delete cluster-wide. With failurePolicy=Fail, an
+  # unscoped selector risks blocking pod creation everywhere (including the
+  # manager's own namespace when it has zero running replicas).
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - workload-class-test

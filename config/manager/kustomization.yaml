@@ -1,0 +1,8 @@
+resources:
+- manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: docker-images-dev.wdpipeline.com/scylla/workload-class
+  newTag: 20260916212920-01435ad

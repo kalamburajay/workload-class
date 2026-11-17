@@ -1,0 +1,50 @@
+apiVersion: workloads.gke.io/v1
+kind: WorkloadClass
+metadata:
+  name: multi-replica-batch
+  namespace: workload-class-test
+spec:
+  podSelector:
+    matchLabels:
+      demo-scenario: multi-replica
+  computeClass: memory
+  disruptionPolicy:
+    allowedDisruptionWindows:
+      - name: "always-open-demo-window"
+        daysOfWeek:
+          - Thursday
+          - Saturday
+          - Sunday
+        startTime: "00:00"
+        endTime: "23:59"
+        timeZone: "Etc/UTC"
+    allowedDisruptionsOutsideOfWindow:
+      - kind: ServiceAccount
+        name: vpa-updater
+        namespace: vpa
+      - kind: User
+        name: system:cluster-autoscaler
+    maxNonDisruptionDurationDays: 15
+    # Once a pod starts terminating, give it 30s of grace before treating the grace
+    # period as passed - avoids the reconciler considering the workload immediately
+    # "settled" mid-termination.
+    graceTerminationDuration: 30
+    # Explicit budget instead of the 25% default, expressed as MinAvailable: at least 1 pod must
+    # remain available at once, out of however many KEDA currently has running (replicas isn't
+    # fixed here - autoScaling below owns it). The PDB stays genuinely protective for the rest of
+    # the window rather than being wide open.
+    minAvailable: 1
+  # Autoscaling intent for a multi-replica workload, on the Platform (Scylla Prometheus)
+  # monitoring domain - general Kubernetes Pod/Container metrics, no custom app instrumentation
+  # needed. Query/threshold here are illustrative placeholders proving the ScaledObject gets
+  # created and reaches Ready; tune them against real usage to see KEDA actually scale.
+  resourceManagement:
+    targetRef:
+      kind: Deployment
+      name: multi-replica-demo
+    autoScaling:
+      minReplicas: 2
+      maxReplicas: 6
+      monitoringDomain: Platform
+      query: sum(rate(container_cpu_usage_seconds_total{namespace="workload-class-test", pod=~"multi-replica-demo-.*"}[5m]))
+      threshold: "0.5"

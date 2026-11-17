@@ -1,0 +1,28 @@
+apiVersion: workloads.gke.io/v1
+kind: WorkloadClassGuardrail
+metadata:
+  name: default
+spec:
+  constraints:
+    disruption:
+      allowedDisruptionDays:
+        - Monday
+        - Tuesday
+        - Wednesday
+        - Thursday
+        - Friday
+        - Saturday
+        - Sunday
+      maxAllowedWindows: 2
+      maxNonDisruptionDurationDays: 30
+    computeClass:
+      allowedComputeClasses:
+        - cpu
+        - memory
+        - balanced
+    resourceManagement:
+      allowedRightSizingModes:
+        - SetOnce
+        - Continuous
+      allowedMonitoringDomains:
+        - Platform

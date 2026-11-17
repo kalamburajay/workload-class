@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: single-replica-demo
+  namespace: workload-class-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      demo-scenario: single-replica
+  template:
+    metadata:
+      labels:
+        demo-scenario: single-replica
+        wd_service: workload-class-test
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      containers:
+        - name: pause
+          image: docker-images-release.wdpipeline.com/scylla/pause:1.34.8-4611d3c
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500M
+            limits:
+              memory: 500M

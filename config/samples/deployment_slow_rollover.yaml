@@ -1,0 +1,37 @@
+# This deployment's readinessProbe points at a port nothing listens on, so its pods
+# never become Ready. That keeps its PodDisruptionBudget permanently at zero allowed
+# disruptions, which reliably reproduces the "PDB blocked by a stuck rollout" scenario
+# on demand - useful for demoing the DisruptionWebhook's blocked-since threshold and
+# lease bypass without waiting for a real slow rollout to happen naturally.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slow-rollover-demo
+  namespace: workload-class-test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      demo-scenario: slow-rollover
+  template:
+    metadata:
+      labels:
+        demo-scenario: slow-rollover
+        wd_service: workload-class-test
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      containers:
+        - name: pause
+          image: docker-images-release.wdpipeline.com/scylla/pause:1.34.8-4611d3c
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500M
+            limits:
+              memory: 500M
+          readinessProbe:
+            tcpSocket:
+              port: 9999
+            periodSeconds: 5
+            failureThreshold: 1
